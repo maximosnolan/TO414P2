@@ -62,3 +62,74 @@ CrossTable(x = test$is_canceled, y = pred, prop.chisq=FALSE)
 confusionMatrix(as.factor(test$is_canceled), as.factor(pred), positive = "1")
 ```
 
+=======
+---
+title: "Testing"
+author: "Maximos Nolan"
+date: '2022-10-27'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load and Investigate the Data
+```{r}
+#load data
+data <- read.csv("hotel_bookings.csv")
+#view data
+summary(data)
+str(data)
+```
+
+```{r}
+#remove duplicate columns that show same data
+data$company <- NULL
+data$assigned_room_type <- NULL
+data$distribution_channel <- NULL
+data$reservation_status_date <- NULL
+
+#factorize categorical data
+data$arrival_date_week_number <- as.factor(data$arrival_date_week_number)
+data$arrival_date_day_of_month <- as.factor(data$arrival_date_day_of_month)
+data$required_car_parking_spaces <- as.factor(data$required_car_parking_spaces)
+data$meal <- as.factor(data$meal)
+data$hotel <- as.factor(data$hotel)
+data$reserved_room_type <- as.factor(data$reserved_room_type)
+data$deposit_type <- as.factor(data$deposit_type)
+data$customer_type <- as.factor(data$customer_type)
+data$agent <- as.factor(data$agent)
+data$children <- as.factor(data$children)
+
+#replace NAs with mean
+data$lead_time = ifelse(is.na(data$lead_time), mean(data$lead_time, na.rm = TRUE), data$lead_time)
+
+#check that data looks good
+summary(data)
+```
+# Check to make sure no numeric columns are too correlated
+```{r}
+data_numeric <- data[,sapply(data, is.numeric)]
+cor(data_numeric)
+```
+
+#Perform Initial Logistic Prediction
+```{r}
+#+ reserved_room_type + children + babies + meal + country
+# lead_time + arrival_date_day_of_month + stays_in_weekend_nights + stays_in_week_nights + adults + children + babies + meal + country + market_segment + distribution_channel + is_repeated_guest + previous_cancellations +
+library(crosstable)
+set.seed(12345)
+canceled = which(data$is_canceled == 1)
+notCanceled = which(data$notCanceled == 0)
+data <- data[,-31]
+str(data)
+train_id1 = c(sample(canceled , size = trunc(0.05 * length(canceled ))),sample(notCanceled , size = trunc(0.05 * length(notCanceled ))))
+train <-data[train_id1, ]
+test <-data[-train_id1, ]
+
+
+canceled <- glm(is_canceled ~ customer_type, data = train, family = "binomial")
+summary(canceled)
+CrossTable(x = test$is_canceled, y = prediction, prop.chisq=FALSE)
+```
