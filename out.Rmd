@@ -1,6 +1,6 @@
 ---
-title: "Testing"
-author: "Maximos Nolan"
+title: "Team 6 Project 2"
+author: "Maximos Nolan. Gloria Stach, Jack Yu, Neo Li, Darik Zeng"
 date: '2022-10-27'
 output: html_document
 ---
@@ -9,12 +9,74 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
-# Clean up data
-data <- read.csv("hotel_bookings.csv")
-data$lead_time = ifelse(is.na(data$lead_time), mean(data$lead_time, na.rm = TRUE), data$lead_time)
+## Dataset Introduction
 
+Our dataset, "Hotel Booking Demand" is obtained from Kaggle (https://www.kaggle.com/datasets/jessemostipak/hotel-booking-demand?page=2) and contains booking information for a city hotel and a resort hotel. The following variables are recorded in the dataset.
+
+- **Hotel**, H1 = Resort Hotel or H2 = City Hotel)
+- **Is_canceled**, value indicating if the booking was canceled (1) or not (0)
+- **Lead_time**, number of days that elapsed between the entering date of the booking into the PMS and the arrival date
+- **Arrival_date_year**, year of arrival date
+- **Arrival_date_month**, month of arrival date
+- **Arrival_date_week_number**, week number of year for arrival date
+- **Arrival_date_day_of_month**, day of arrival date
+- **Stays_in_weekend_nights**, number of weekend nights (Saturday or Sunday) the guest stayed or booked to stay at the hotel
+- **Stays_in_week_nights**, number of week nights (Monday to Friday) the guest stayed or booked to stay at the hotel
+- **Adults**, number of adults
+- **Children**, number of children
+- **Babies**, number of babies
+- **Meal**, type of meal booked
+- **Country**, country of origin
+- **Market_segment**, market segment designation
+- **Distribution_channel**, booking distribution channel
+- **Is_repeated_guest**, value indicating if the booking name was from a repeated guest (1) or not (0)
+- **Previous_cancellations**, number of previous bookings that were cancelled by the customer prior to the current booking
+- **Previous_bookings_not_canceled**, number of previous bookings not cancelled by the customer prior to the current booking
+- **Reserved_room_type**, code of room type reserved
+- **Assigned_room_type**, code for the type of room assigned to the booking
+- **Booking_changes**, number of changes/amendments made to the booking from the moment the booking was entered on the PMS until the moment of check-in or cancellation
+- **Deposit_type**, indication on if the customer made a deposit to guarantee the booking
+- **Agent**, ID of the travel agency that made the booking
+- **Company**, ID of the company/entity that made the booking or responsible for paying the booking
+- **Days_in_waiting_list**, number of days the booking was in the waiting list before it was confirmed to the customer
+- **Customer_type**, type of booking, assuming one of four categories: Contract, Group, Transient, and Transient-party
+- **Adr**, average Daily Rate as defined by dividing the sum of all lodging transactions by the total number of staying nights
+- **Required_car_parking_spaces**, number of car parking spaces required by the customer
+- **Total_of_special_requests**, number of special requests made by the customer
+- **Reservation_status**, reservation last status, assuming one of three categories: Canceled – booking was canceled by the customer; Check-Out – customer has checked in but already departed; No-Show – customer did not check-in and did inform the hotel of the reason why
+- **Reservation_status_date**, date at which the last status was set
+
+
+## Business Question
+
+Monitoring the rate of cancellation is important for every hotel as it's related to its revenue. We know that customers have different willingness to pay when they book the hotels at different dates. When they book ahead of time, they are more price sensitive, and the hotels normally charge a normal price. But for the customers who arrive on the day of booking, they have more inelastic demand and thus are willing to pay more. Therefore, hotels would charge them a premium. In order to have rooms for these pay on the same day as arrival customers, hotel management needs to have rooms reserved for them or protection levels, similar to the concept of safety stock in supply chain management.
+
+Cancellations is one important part of calculating the protection levels, as booking cancellations on the day of arrival means more rooms for customers who are willing to pay a premium. Thus hotels factor in the rate of cancellation in their planning. Now let's assume the hotel is operating with reserving just enough rooms to meet the pay on the same day as arrival demand. Then random cancellations would mess up the planning as the empty room will be unused. Thus the hotels would need to weight the benefit and cost of having cancellations, with the simplest approach being calculating an average percentage of cancellations among all customers. How can we improve this approach to have more confidence in the rooms planning process?
+
+The business question is thus how can we construct a model to predict a customer's rate of cancellation and plan the protection level accordingly to maximize the operating profit?
+
+To see the impact of cancellation, we have two scenarios:
+
+- The customer is predicted to not cancel but actually has a cancellation: since the demand for premium price is already met, this additional empty room will be unoccupied, thus generating a loss equals to the normal price.
+- The customer is predicted to cancel but does not cancel: since we expect the customer to cancel, we expect to have one additional room for the higher willingness to pay customer groups. But not the customer doesn't cancel, so we lose a prospect revenue of premium price - normal price.
+
+Thus we can further refine our question to be, how can we construct a model to predict a customer's rate of cancellation and plan the protection level accordingly to minimize the revenue loss from cancellations and therefore maximize the operating profit?
+
+## Load and Investigate the Data
+```{r}
+#load data
+data <- read.csv("hotel_bookings.csv")
+#view data
+summary(data)
+str(data)
+```
+
+```{r}
+#check that data looks good
+summary(data)
+# remove column about reservation_status as it indicates if the reservation is cancelled
 data <- data[,-31]
+#remove duplicate columns that show same data
 data$company <- NULL
 data$assigned_room_type <- NULL
 data$distribution_channel <- NULL
@@ -30,22 +92,28 @@ data$customer_type <- as.factor(data$customer_type)
 data$arrival_date_month <- as.factor(data$arrival_date_month)
 data$agent <- NULL
 data$country <- as.factor(data$country)
-data$market_segment <- as.factor(data$market_segment)
+# data$market_segment <- as.factor(data$market_segment)
+data$market_segment <- NULL
 # data$agent <- as.factor(data$agent)
 # make baby a factor
 data$country <- NULL
+#replace NAs with mean
+data$lead_time = ifelse(is.na(data$lead_time), mean(data$lead_time, na.rm = TRUE), data$lead_time)
 summary(data)
 str(data)
-
+```
+# Check to make sure no numeric columns are too correlated
+```{r}
+data_numeric <- data[,sapply(data, is.numeric)]
+round(cor(mtcars),2)
 ```
 
+#Perform Initial Logistic Prediction
 ```{r}
-#+ reserved_room_type + children + babies + meal + country
-# lead_time + arrival_date_day_of_month + stays_in_weekend_nights + stays_in_week_nights + adults + children + babies + meal + country + market_segment + distribution_channel + is_repeated_guest + previous_cancellations +
 library(gmodels)
 library(caret)
+
 set.seed(12345)
-data$is_canceled
 canceled = which(data$is_canceled == 1)
 notCanceled = which(data$is_canceled == 0)
 train_id1 = c(sample(canceled , size = trunc(0.7 * length(canceled ))),sample(notCanceled , size = trunc(0.7 * length(notCanceled ))))
@@ -60,76 +128,4 @@ pred <- predict(canceled, test, type="response")
 pred <- ifelse(pred <= 0.5, 0, 1)
 CrossTable(x = test$is_canceled, y = pred, prop.chisq=FALSE)
 confusionMatrix(as.factor(test$is_canceled), as.factor(pred), positive = "1")
-```
-
-=======
----
-title: "Testing"
-author: "Maximos Nolan"
-date: '2022-10-27'
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## Load and Investigate the Data
-```{r}
-#load data
-data <- read.csv("hotel_bookings.csv")
-#view data
-summary(data)
-str(data)
-```
-
-```{r}
-#remove duplicate columns that show same data
-data$company <- NULL
-data$assigned_room_type <- NULL
-data$distribution_channel <- NULL
-data$reservation_status_date <- NULL
-
-#factorize categorical data
-data$arrival_date_week_number <- as.factor(data$arrival_date_week_number)
-data$arrival_date_day_of_month <- as.factor(data$arrival_date_day_of_month)
-data$required_car_parking_spaces <- as.factor(data$required_car_parking_spaces)
-data$meal <- as.factor(data$meal)
-data$hotel <- as.factor(data$hotel)
-data$reserved_room_type <- as.factor(data$reserved_room_type)
-data$deposit_type <- as.factor(data$deposit_type)
-data$customer_type <- as.factor(data$customer_type)
-data$agent <- as.factor(data$agent)
-data$children <- as.factor(data$children)
-
-#replace NAs with mean
-data$lead_time = ifelse(is.na(data$lead_time), mean(data$lead_time, na.rm = TRUE), data$lead_time)
-
-#check that data looks good
-summary(data)
-```
-# Check to make sure no numeric columns are too correlated
-```{r}
-data_numeric <- data[,sapply(data, is.numeric)]
-cor(data_numeric)
-```
-
-#Perform Initial Logistic Prediction
-```{r}
-#+ reserved_room_type + children + babies + meal + country
-# lead_time + arrival_date_day_of_month + stays_in_weekend_nights + stays_in_week_nights + adults + children + babies + meal + country + market_segment + distribution_channel + is_repeated_guest + previous_cancellations +
-library(crosstable)
-set.seed(12345)
-canceled = which(data$is_canceled == 1)
-notCanceled = which(data$notCanceled == 0)
-data <- data[,-31]
-str(data)
-train_id1 = c(sample(canceled , size = trunc(0.05 * length(canceled ))),sample(notCanceled , size = trunc(0.05 * length(notCanceled ))))
-train <-data[train_id1, ]
-test <-data[-train_id1, ]
-
-
-canceled <- glm(is_canceled ~ customer_type, data = train, family = "binomial")
-summary(canceled)
-CrossTable(x = test$is_canceled, y = prediction, prop.chisq=FALSE)
 ```
