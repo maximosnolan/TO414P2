@@ -1,6 +1,6 @@
 ---
 title: "Team 6 Project 2"
-author: "Maximos Nolan. Gloria Stach, Jack Yu, Neo Li, Darik Zeng"
+author: "Maximos Nolan. Gloria Stach, Jack Yu, Neo Li, Zihan Zeng"
 date: '2022-10-27'
 output: html_document
 ---
@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Dataset Introduction
+# Dataset Introduction
 
 Our dataset, "Hotel Booking Demand" is obtained from Kaggle (https://www.kaggle.com/datasets/jessemostipak/hotel-booking-demand?page=2) and contains booking information for a city hotel and a resort hotel. The following variables are recorded in the dataset.
 
@@ -47,7 +47,7 @@ Our dataset, "Hotel Booking Demand" is obtained from Kaggle (https://www.kaggle.
 - **Reservation_status_date**, date at which the last status was set
 
 
-## Business Question
+# Business Question
 
 Monitoring the rate of cancellation is important for every hotel as it's related to its revenue. We know that customers have different willingness to pay when they book the hotels at different dates. When they book ahead of time, they are more price sensitive, and the hotels normally charge a normal price. But for the customers who arrive on the day of booking, they have more inelastic demand and thus are willing to pay more. Therefore, hotels would charge them a premium. In order to have rooms for these pay on the same day as arrival customers, hotel management needs to have rooms reserved for them or protection levels, similar to the concept of safety stock in supply chain management.
 
@@ -58,25 +58,53 @@ The business question is thus how can we construct a model to predict a customer
 To see the impact of cancellation, we have two scenarios:
 
 - The customer is predicted to not cancel but actually has a cancellation: since the demand for premium price is already met, this additional empty room will be unoccupied, thus generating a loss equals to the normal price.
+
 - The customer is predicted to cancel but does not cancel: since we expect the customer to cancel, we expect to have one additional room for the higher willingness to pay customer groups. But not the customer doesn't cancel, so we lose a prospect revenue of premium price - normal price.
 
 Thus we can further refine our question to be, how can we construct a model to predict a customer's rate of cancellation and plan the protection level accordingly to minimize the revenue loss from cancellations and therefore maximize the operating profit?
 
-## Load and Investigate the Data
+# Load the required library
 ```{r}
-#load data
+library(gmodels)
+library(caret)
+library(neuralnet)
+library(crosstable)
+library(tidyverse)
+library(class)
+library(ggplot2)
+library(dplyr)
+```
+
+# Load the required dataset
+```{r}
+# load data
 data <- read.csv("hotel_bookings.csv")
-#view data
+# view data
 summary(data)
 str(data)
 ```
 
+# Explore the dataset by visualization
+**Through our life experience, we start by exploring some variables first that could potentially impact the cancellation rate**
 ```{r}
-#check that data looks good
+# Check the lead_time
+hist(data$lead_time, main="Distribution of the lead time", xlab="Lead Time",col="darkmagenta",
+freq=FALSE)
+# Check the customers' arrival month
+ggplot(data) + geom_bar(mapping = aes(x = "", fill = arrival_date_month)) + labs(x = NULL) + coord_polar(theta = "y") + ylab("Arrival Month")
+# Check the reserved room type
+ggplot(data) + geom_bar(mapping = aes(x = "", fill = reserved_room_type), width = 1) + labs(x = NULL) +  coord_polar(theta = "y")
+# Check the customer type
+ggplot(data) + geom_bar(mapping = aes(x = "", fill = customer_type), width = 1) + labs(x = NULL)
+```
+
+# Clean the dataset
+```{r}
+# check that data looks good
 summary(data)
 # remove column about reservation_status as it indicates if the reservation is cancelled
 data <- data[,-31]
-#remove duplicate columns that show same data
+# remove duplicate columns that show the same data
 data$company <- NULL
 data$assigned_room_type <- NULL
 data$distribution_channel <- NULL
@@ -92,12 +120,9 @@ data$customer_type <- as.factor(data$customer_type)
 data$arrival_date_month <- as.factor(data$arrival_date_month)
 data$agent <- NULL
 data$country <- as.factor(data$country)
-# data$market_segment <- as.factor(data$market_segment)
 data$market_segment <- NULL
-# data$agent <- as.factor(data$agent)
-# make baby a factor
 data$country <- NULL
-#replace NAs with mean
+# replace NAs with mean
 data$lead_time = ifelse(is.na(data$lead_time), mean(data$lead_time, na.rm = TRUE), data$lead_time)
 # create three dummy variable levels for lead_time
 # we are doing this because based on personal experience with hotel booking, lead time probably has a nonlinear relationship with hotel cancellation
@@ -107,16 +132,15 @@ data$lead_time <- as.factor(data$lead_time)
 summary(data)
 str(data)
 ```
-# Correlation for Numeric Columns
-Check to make sure no numeric columns are not too correlated
-and also can be used to choose which variables to include in the model later
 
+# Correlation for Numeric Columns
+**Check to make sure no numeric columns are not too correlated and also can be used to choose which variables to include in the model later.**
 ```{r}
 data_numeric <- data[,sapply(data, is.numeric)]
 round(cor(data_numeric),2)
 ```
 
-#Perform Initial Logistic Prediction
+# Perform Initial Logistic Prediction
 ```{r}
 library(gmodels)
 library(caret)
@@ -125,11 +149,11 @@ set.seed(12345)
 canceled = which(data$is_canceled == 1)
 notCanceled = which(data$is_canceled == 0)
 train_id1 = c(sample(canceled , size = trunc(0.7 * length(canceled ))),sample(notCanceled , size = trunc(0.7 * length(notCanceled ))))
-#index <- c(sample(length(data)), 0.05*length(data))
-#train <-data[train_id1, ]
+# index <- c(sample(length(data)), 0.05*length(data))
+# train <-data[train_id1, ]
 train <-data[train_id1, ]
 test <-data[-train_id1, ]
-#test <-data[-train_id1, ]
+# test <-data[-train_id1, ]
 canceled <- glm(is_canceled ~ ., data = train, family = "binomial")
 summary(canceled)
 pred <- predict(canceled, test, type="response")
@@ -137,3 +161,9 @@ pred <- ifelse(pred <= 0.5, 0, 1)
 CrossTable(x = test$is_canceled, y = pred, prop.chisq=FALSE)
 confusionMatrix(as.factor(test$is_canceled), as.factor(pred), positive = "1")
 ```
+
+**Preliminary summary**
+From the cross table, we can find that there are rooms for us to improve the profitability because both scenarios mentioned above do happen frequently (5884 & 1399). From the hypothesis tests, we notice that the coefficients of variables below are statistically significant, thus we may focus on them in later model building and profit improvement plans.
+
+**Variables that worth being focused**
+lead_time; hotel; arrival_date_month; meal; previous_cancellations; customer_type; reserved_room_type.
