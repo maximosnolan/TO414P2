@@ -102,10 +102,13 @@ data$lead_time = ifelse(is.na(data$lead_time), mean(data$lead_time, na.rm = TRUE
 summary(data)
 str(data)
 ```
-# Check to make sure no numeric columns are too correlated
+# Correlation for Numeric Columns
+Check to make sure no numeric columns are not too correlated
+and also can be used to choose which variables to include in the model later
+
 ```{r}
 data_numeric <- data[,sapply(data, is.numeric)]
-round(cor(mtcars),2)
+round(cor(data_numeric),2)
 ```
 
 #Perform Initial Logistic Prediction
