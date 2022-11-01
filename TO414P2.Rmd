@@ -99,6 +99,11 @@ data$market_segment <- NULL
 data$country <- NULL
 #replace NAs with mean
 data$lead_time = ifelse(is.na(data$lead_time), mean(data$lead_time, na.rm = TRUE), data$lead_time)
+# create three dummy variable levels for lead_time
+# we are doing this because based on personal experience with hotel booking, lead time probably has a nonlinear relationship with hotel cancellation
+data$lead_time <- ifelse(data$lead_time <= 7, "Short",
+                        ifelse(data$lead_time <= 60, "Moderate", "Long"))
+data$lead_time <- as.factor(data$lead_time)
 summary(data)
 str(data)
 ```
