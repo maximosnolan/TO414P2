@@ -1,6 +1,6 @@
 ---
 title: "Team 6 Project 2"
-author: "Maximos Nolan. Gloria Stach, Jack Yu, Neo Li, Zihan Zeng"
+author: "Maximos Nolan, Gloria Stach, Jack Yu, Neo Li, Zihan Zeng"
 date: '2022-10-27'
 output: html_document
 ---
