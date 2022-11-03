@@ -167,3 +167,23 @@ From the cross table, we can find that there are rooms for us to improve the pro
 
 **Variables that worth being focused**
 lead_time; hotel; arrival_date_month; meal; previous_cancellations; customer_type; reserved_room_type.
+
+# kNN Prediction
+```{r}
+
+```
+
+# ANN Prediction
+```{r}
+
+```
+
+# Decision Trees Prediction
+```{r}
+
+```
+
+# Naive Bayes Prediction
+```{r}
+
+```
