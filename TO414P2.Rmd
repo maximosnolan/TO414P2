@@ -68,7 +68,6 @@ Thus we can further refine our question to be, how can we construct a model to p
 library(gmodels)
 library(caret)
 library(neuralnet)
-library(crosstable)
 library(tidyverse)
 library(class)
 library(ggplot2)
@@ -105,20 +104,24 @@ ggplot(hoteldata) + geom_bar(mapping = aes(x = "", fill = customer_type), width 
 summary(hoteldata)
 # remove column about reservation_status as it indicates if the reservation is cancelled
 hoteldata <- hoteldata[,-31]
+hotel_cor_data = hoteldata
 # remove duplicate columns that show the same data
 hoteldata$company <- NULL
 hoteldata$assigned_room_type <- NULL
 hoteldata$distribution_channel <- NULL
 hoteldata$reservation_status_date <- NULL
 hoteldata$arrival_date_year <- as.factor(hoteldata$arrival_date_year)
-hoteldata$arrival_date_week_number <- as.factor(hoteldata$arrival_date_week_number)
-hoteldata$arrival_date_day_of_month <- as.factor(hoteldata$arrival_date_day_of_month)
+#hoteldata$arrival_date_week_number <- as.factor(hoteldata$arrival_date_week_number)
+hoteldata$arrival_date_week_number <- NULL
+#hoteldata$arrival_date_day_of_month <- as.factor(hoteldata$arrival_date_day_of_month)
+hoteldata$arrival_date_day_of_month <- NULL
 hoteldata$required_car_parking_spaces <- as.factor(hoteldata$required_car_parking_spaces)
 hoteldata$meal <- as.factor(hoteldata$meal)
 hoteldata$reserved_room_type <- as.factor(hoteldata$reserved_room_type)
 hoteldata$deposit_type <- as.factor(hoteldata$deposit_type)
 hoteldata$customer_type <- as.factor(hoteldata$customer_type)
-hoteldata$arrival_date_month <- as.factor(hoteldata$arrival_date_month)
+#hoteldata$arrival_date_month <- as.factor(hoteldata$arrival_date_month)
+hoteldata$arrival_date_month <- NULL
 hoteldata$agent <- NULL
 hoteldata$country <- as.factor(hoteldata$country)
 hoteldata$market_segment <- NULL
@@ -149,7 +152,7 @@ str(hoteldata_norm)
 # Correlation for Numeric Columns
 **Check to make sure no numeric columns are not too correlated and also can be used to choose which variables to include in the model later.**
 ```{r}
-hoteldata_numeric <- hoteldata[,sapply(hoteldata, is.numeric)]
+hoteldata_numeric <- hotel_cor_data[,sapply(hotel_cor_data, is.numeric)]
 round(cor(hoteldata_numeric),2)
 ```
 
@@ -188,8 +191,17 @@ lead_time; hotel; arrival_date_month; meal; previous_cancellations; customer_typ
 
 # ANN Prediction
 ```{r}
-
+ANN_model1 <- neuralnet(formula = is_canceled ~ ., data = train)
+plot(ANN_model1)
+ANN_pred1 <- predict(ANN_model1, test)
+threshold <- 0.5
+predicted_yyes_1 <- ifelse(ANN_pred1 < threshold, 0, 1)
+CrossTable(x = test$is_canceled, y = predicted_yyes_1, prop.chisq=FALSE)
+confusionMatrix(as.factor(test$is_canceled), as.factor(predicted_yyes_1), positive = "1")
 ```
+
+**Summary**
+We can see from the ANN model output, there are 2633 false positive and 9389 false negative. The overall accuracy is 79.86%.
 
 # Decision Trees Prediction
 ```{r}
