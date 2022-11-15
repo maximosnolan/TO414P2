@@ -78,11 +78,13 @@ library(e1071)
 
 # Load the required dataset
 ```{r}
-# load data
+# Load data
 hoteldata <- read.csv("hotel_bookings.csv")
-# view data
+# View data
 summary(hoteldata)
 str(hoteldata)
+# Store the original data set to a new one for collinearity check
+hotel_cor_data = hoteldata
 ```
 
 # Explore the dataset by visualization
@@ -101,52 +103,71 @@ ggplot(hoteldata) + geom_bar(mapping = aes(x = "", fill = customer_type), width 
 
 # Clean the dataset
 ```{r}
-# check that data looks good
+# Check that data
 summary(hoteldata)
-# remove column about reservation_status as it indicates if the reservation is cancelled
-hoteldata <- hoteldata[,-31]
-hotel_cor_data = hoteldata
-# remove duplicate columns that show the same data
-hoteldata$company <- NULL
-hoteldata$assigned_room_type <- NULL
-hoteldata$distribution_channel <- NULL
-hoteldata$reservation_status_date <- NULL
+
+# Remove column about reservation_status as it indicates if the reservation is cancelled
+hoteldata <- subset(hoteldata, select = -c(reservation_status))
+
+# Factorize columns with binary data
+hoteldata$hotel <- as.factor(hoteldata$hotel)
 hoteldata$arrival_date_year <- as.factor(hoteldata$arrival_date_year)
-#hoteldata$arrival_date_week_number <- as.factor(hoteldata$arrival_date_week_number)
-hoteldata$arrival_date_week_number <- NULL
-#hoteldata$arrival_date_day_of_month <- as.factor(hoteldata$arrival_date_day_of_month)
-hoteldata$arrival_date_day_of_month <- NULL
-hoteldata$required_car_parking_spaces <- as.factor(hoteldata$required_car_parking_spaces)
+hoteldata$arrival_date_month <- as.factor(hoteldata$arrival_date_month)
+hoteldata$adults <- as.factor(hoteldata$adults)
+hoteldata$children  <- as.factor(hoteldata$children)
+hoteldata$babies <- as.factor(hoteldata$babies)
 hoteldata$meal <- as.factor(hoteldata$meal)
 hoteldata$reserved_room_type <- as.factor(hoteldata$reserved_room_type)
 hoteldata$deposit_type <- as.factor(hoteldata$deposit_type)
 hoteldata$customer_type <- as.factor(hoteldata$customer_type)
-#hoteldata$arrival_date_month <- as.factor(hoteldata$arrival_date_month)
+hoteldata$required_car_parking_spaces <- as.factor(hoteldata$required_car_parking_spaces)
+hoteldata$total_of_special_requests <- as.factor(hoteldata$total_of_special_requests)
+
+# Remove columns that have obviously weak influence on the cancellation rate or have too many levels
+hoteldata$arrival_date_week_number <- NULL
+hoteldata$arrival_date_day_of_month <- NULL
+hoteldata$company <- NULL
+hoteldata$assigned_room_type <- NULL
+hoteldata$distribution_channel <- NULL
+hoteldata$reservation_status_date <- NULL
 hoteldata$arrival_date_month <- NULL
 hoteldata$agent <- NULL
-hoteldata$country <- as.factor(hoteldata$country)
 hoteldata$market_segment <- NULL
-hoteldata$country <- NULL
-# replace NAs with mean
+
+# Deal with the variable "Country"
+## Because the levels of the country are too many, we count the total number of customers from different countries and make those which have more than 5000 counts factorized directly. For those who have less than 5000 counts, we just categorize them to "other". 
+group_by(hoteldata, country) %>% summarize(n_country = n()) %>% arrange(desc(n_country))%>% print()
+hoteldata$country <- ifelse(hoteldata$country=="PRT", "PRT",
+                      ifelse(hoteldata$country == "GBR", "GBR", 
+                      ifelse(hoteldata$country == "FRA", "FRA",
+                      ifelse(hoteldata$country == "ESP", "ESP",
+                      ifelse(hoteldata$country == "DEU", "DEU", "OTHER")))))
+hoteldata$country <- as.factor(hoteldata$country)
+
+# Deal with the variable "lead time"
+## Replace NAs with mean
 hoteldata$lead_time = ifelse(is.na(hoteldata$lead_time), mean(hoteldata$lead_time, na.rm = TRUE), hoteldata$lead_time)
-# create three dummy variable levels for lead_time
-# we are doing this because based on personal experience with hotel booking, lead time probably has a nonlinear relationship with hotel cancellation
+## Create three dummy variable levels for lead_time
+### We are doing this because based on personal experience with hotel booking, lead time probably has a nonlinear relationship with hotel cancellation
 hoteldata$lead_time <- ifelse(hoteldata$lead_time <= 7, "Short",
                         ifelse(hoteldata$lead_time <= 60, "Moderate", "Long"))
 hoteldata$lead_time <- as.factor(hoteldata$lead_time)
-summary(hoteldata)
-str(hoteldata)
 
-# convert all factors into dummy variables using model.matrix for later knn analysis
-hoteldata <- as.data.frame(model.matrix(~.-1,hoteldata))
-str(hoteldata)
+# Using model.matrix to convert all the factors to dummy variables
+hoteldatamm <- as.data.frame(model.matrix(~.-1,hoteldata))
 
-# normalize the data
+# Randomize the rows in the data (shuffling the rows)
+set.seed(12345)
+hoteldata_random = hoteldatamm[sample(nrow(hoteldatamm)),]
+
+# Normalize the data
 normalize <- function(x) {
   return ((x - min(x)) / (max(x) - min(x)))
 }
+hoteldata_norm <- as.data.frame(lapply(hoteldata_random, normalize))
 
-hoteldata_norm <- as.data.frame(lapply(hoteldata, normalize))
+# Check the normalized data
+summary(hoteldata_norm)
 str(hoteldata_norm)
 ```
 
@@ -157,20 +178,16 @@ hoteldata_numeric <- hotel_cor_data[,sapply(hotel_cor_data, is.numeric)]
 round(cor(hoteldata_numeric),2)
 ```
 
+# Split the train and test set
+```{r}
+set.seed(12345)
+train_ID = sample(0.5*nrow(hoteldata_norm))
+hotel_train = hoteldata_norm[train_ID, ]
+hotel_test = hoteldata_norm[-train_ID, ]
+```
+
 # Logistic Regression Prediction
 ```{r}
-library(gmodels)
-library(caret)
-
-set.seed(12345)
-canceled = which(hoteldata_norm$is_canceled == 1)
-notCanceled = which(hoteldata_norm$is_canceled == 0)
-train_id1 = c(sample(canceled , size = trunc(0.5 * length(canceled ))),sample(notCanceled , size = trunc(0.5 * length(notCanceled ))))
-# index <- c(sample(length(data)), 0.05*length(data))
-# train <-data[train_id1, ]
-train <- hoteldata_norm[train_id1, ]
-test <- hoteldata_norm[-train_id1, ]
-# test <-data[-train_id1, ]
 canceled_lr <- glm(is_canceled ~ . - hotelResort.Hotel, data = train, family = "binomial")
 summary(canceled_lr)
 pred_lr <- predict(canceled_lr, test, type="response")
@@ -230,6 +247,7 @@ confusionMatrix(as.factor(test$is_canceled), as.factor(pred_dt_boost), positive 
 **Summary**
 From the boosted model, we can see that the accuracy is 82.7%, with 7782 false negatives (people who are predicted to not cancel but actually cancels) and 2545 false positives (people who are predicted to cancel but actually don't cancel). 
 
+
 # Naive Bayes Prediction
 ```{r}
 sms_train = hoteldata_norm[train_id1, -match("is_canceled",names(hoteldata_norm))]
@@ -243,8 +261,6 @@ sms_classifier
 ## Step 4: Evaluating model performance ----
 sms_test_pred <- predict(sms_classifier, sms_test)
 
-library(gmodels)
 CrossTable(sms_test_pred, sms_test_labels,prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,dnn = c('predicted', 'actual'))
 confusionMatrix(as.factor(test$is_canceled), as.factor(pred_dt_boost), positive = "1")
 ```
-
