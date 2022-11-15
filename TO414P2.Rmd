@@ -73,6 +73,7 @@ library(class)
 library(ggplot2)
 library(dplyr)
 library(C50)
+library(e1071)
 ```
 
 # Load the required dataset
@@ -229,8 +230,21 @@ confusionMatrix(as.factor(test$is_canceled), as.factor(pred_dt_boost), positive 
 **Summary**
 From the boosted model, we can see that the accuracy is 82.7%, with 7782 false negatives (people who are predicted to not cancel but actually cancels) and 2545 false positives (people who are predicted to cancel but actually don't cancel). 
 
-
 # Naive Bayes Prediction
 ```{r}
+sms_train = hoteldata_norm[train_id1, -match("is_canceled",names(hoteldata_norm))]
+sms_test = hoteldata_norm[-train_id1, -match("is_canceled",names(hoteldata_norm))]
+sms_train_labels = as.factor(hoteldata_norm[train_id1,  "is_canceled"])
+sms_test_labels = as.factor(hoteldata_norm[-train_id1, "is_canceled"])
 
+sms_classifier <- naiveBayes(sms_train, sms_train_labels)
+sms_classifier
+
+## Step 4: Evaluating model performance ----
+sms_test_pred <- predict(sms_classifier, sms_test)
+
+library(gmodels)
+CrossTable(sms_test_pred, sms_test_labels,prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,dnn = c('predicted', 'actual'))
+confusionMatrix(as.factor(test$is_canceled), as.factor(pred_dt_boost), positive = "1")
 ```
+
