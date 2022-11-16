@@ -188,16 +188,22 @@ hotel_test = hoteldata_norm[-train_ID, ]
 
 # Logistic Regression Prediction
 ```{r}
-canceled_lr <- glm(is_canceled ~ . - hotelResort.Hotel, data = train, family = "binomial")
+set.seed(12345)
+canceled_lr <- glm(is_canceled ~ . - hotelResort.Hotel, data = hotel_train, family = "binomial")
 summary(canceled_lr)
-pred_lr <- predict(canceled_lr, test, type="response")
+
+# Remove variables with strong multicollinearity 
+canceled_lr <- glm(is_canceled ~ . - hotelResort.Hotel - adults10 - adults40 - adults50 - children10 - babies10, data = hotel_train, family = "binomial")
+summary(canceled_lr)
+
+pred_lr <- predict(canceled_lr, hotel_test, type="response")
 pred_lr <- ifelse(pred_lr <= 0.5, 0, 1)
-CrossTable(x = test$is_canceled, y = pred_lr, prop.chisq=FALSE)
-confusionMatrix(as.factor(test$is_canceled), as.factor(pred_lr), positive = "1")
+CrossTable(x = hotel_test$is_canceled, y = pred_lr, prop.chisq=FALSE)
+confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(pred_lr), positive = "1")
 ```
 
 **Summary**
-From the cross table, we can find that there are rooms for us to improve the profitability because both scenarios mentioned above do happen frequently (9662 & 2540). From the hypothesis tests, we notice that the coefficients of variables below are statistically significant, thus we may focus on them in later model building and profit improvement plans.
+From the cross table, we can find that there are rooms for us to improve the profitability because both scenarios mentioned above do happen frequently (8260 & 3327). From the hypothesis tests, we notice that the coefficients of variables below are statistically significant, thus we may focus on them in later model building and profit improvement plans.
 
 **Variables that worth being focused**
 lead_time; hotel; arrival_date_month; meal; previous_cancellations; customer_type; reserved_room_type.
@@ -209,51 +215,53 @@ lead_time; hotel; arrival_date_month; meal; previous_cancellations; customer_typ
 
 # ANN Prediction
 ```{r}
-ANN_model1 <- neuralnet(formula = is_canceled ~ ., data = train)
+set.seed(12345)
+ANN_model1 <- neuralnet(formula = is_canceled ~ ., data = hotel_train)
 plot(ANN_model1)
-ANN_pred1 <- predict(ANN_model1, test)
+ANN_pred1 <- predict(ANN_model1, hotel_test)
 threshold <- 0.5
 predicted_yyes_1 <- ifelse(ANN_pred1 < threshold, 0, 1)
-CrossTable(x = test$is_canceled, y = predicted_yyes_1, prop.chisq=FALSE)
-confusionMatrix(as.factor(test$is_canceled), as.factor(predicted_yyes_1), positive = "1")
+CrossTable(x = hotel_test$is_canceled, y = predicted_yyes_1, prop.chisq=FALSE)
+confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(predicted_yyes_1), positive = "1")
 ```
 
 **Summary**
-We can see from the ANN model output, there are 2633 false positive and 9389 false negative. The overall accuracy is 79.86%.
+We can see from the ANN model output, there are 3451 false positive and 7767 false negative. The overall accuracy is 81.21%.
 
 # Decision Trees Prediction
 ```{r}
+set.seed(12345)
 # building the decision trees model
-canceled_dt <- C5.0(as.factor(is_canceled) ~ ., data = train)
+canceled_dt <- C5.0(as.factor(is_canceled) ~ ., data = hotel_train)
 canceled_dt
 summary(canceled_dt)
 plot(canceled_dt, subtree = 5)
 
 # predict with the decision tree model
-pred_dt <- predict(canceled_dt, test)
+pred_dt <- predict(canceled_dt, hotel_test)
 
 # evaluate the model performance 
-CrossTable(x = test$is_canceled, y = pred_dt, prop.chisq=FALSE)
-confusionMatrix(as.factor(test$is_canceled), as.factor(pred_dt), positive = "1")
+CrossTable(x = hotel_test$is_canceled, y = pred_dt, prop.chisq=FALSE)
+confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(pred_dt), positive = "1")
 
 # improve the model accuracy by adding more trials to the model
-canceled_dt_boost <- C5.0(train[-3], as.factor(train$is_canceled),
+canceled_dt_boost <- C5.0(as.factor(is_canceled) ~ ., data = hotel_train,
                        trials = 100)
-pred_dt_boost <- predict(canceled_dt_boost, test)
-CrossTable(x = test$is_canceled, y = pred_dt_boost, prop.chisq=FALSE)
-confusionMatrix(as.factor(test$is_canceled), as.factor(pred_dt_boost), positive = "1")
+pred_dt_boost <- predict(canceled_dt_boost, hotel_test)
+CrossTable(x = hotel_test$is_canceled, y = pred_dt_boost, prop.chisq=FALSE)
+confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(pred_dt_boost), positive = "1")
 ```
 
 **Summary**
-From the boosted model, we can see that the accuracy is 82.7%, with 7782 false negatives (people who are predicted to not cancel but actually cancels) and 2545 false positives (people who are predicted to cancel but actually don't cancel). 
+From the boosted model, we can see that the accuracy is 85.2%, with 5734 false negatives (people who are predicted to not cancel but actually cancels) and 3095 false positives (people who are predicted to cancel but actually don't cancel). 
 
 
 # Naive Bayes Prediction
 ```{r}
-sms_train = hoteldata_norm[train_id1, -match("is_canceled",names(hoteldata_norm))]
-sms_test = hoteldata_norm[-train_id1, -match("is_canceled",names(hoteldata_norm))]
-sms_train_labels = as.factor(hoteldata_norm[train_id1,  "is_canceled"])
-sms_test_labels = as.factor(hoteldata_norm[-train_id1, "is_canceled"])
+sms_train = hoteldata_norm[train_ID, -match("is_canceled",names(hoteldata_norm))]
+sms_test = hoteldata_norm[-train_ID, -match("is_canceled",names(hoteldata_norm))]
+sms_train_labels = as.factor(hoteldata_norm[train_ID,  "is_canceled"])
+sms_test_labels = as.factor(hoteldata_norm[-train_ID, "is_canceled"])
 
 sms_classifier <- naiveBayes(sms_train, sms_train_labels)
 sms_classifier
@@ -261,6 +269,6 @@ sms_classifier
 ## Step 4: Evaluating model performance ----
 sms_test_pred <- predict(sms_classifier, sms_test)
 
-CrossTable(sms_test_pred, sms_test_labels,prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,dnn = c('predicted', 'actual'))
-confusionMatrix(as.factor(test$is_canceled), as.factor(pred_dt_boost), positive = "1")
+CrossTable(sms_test_labels, sms_test_pred, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,dnn = c('actual', 'predicted'))
+confusionMatrix(as.factor(sms_test_labels), as.factor(sms_test_pred), positive = "1")
 ```
