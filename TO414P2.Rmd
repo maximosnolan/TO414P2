@@ -292,4 +292,16 @@ table(predictions_svm, hotel_test$is_canceled)
 agreement <- predictions_svm == hotel_test$is_canceled
 table(agreement)
 prop.table(table(agreement))
+CrossTable(x = hotel_test$is_canceled, y = predictions_svm, prop.chisq=FALSE)
+confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(predictions_svm), positive = "1")
 ```
+
+**Summary**
+
+From the SVM, we can see that the accuracy is 80.04% with 2455 false positives and 9244 false negatives. What this means is that we are claiming that 2455 people will not honor their booking when in reality they do. Moreover, we are also asserting with this model that there are 9244 people that will honor their booking that actually do not. Moreover, the kappa score is 0.544, which shows relatively strong agreement.
+
+#Stacked Model
+```{r}
+combined_predictions <- data.frame(pred_lr, predicted_yyes_1, pred_dt_boost, sms_test_pred , predictions_svm, hotel_test$is_canceled)
+```
+
