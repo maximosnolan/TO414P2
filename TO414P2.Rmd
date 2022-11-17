@@ -288,8 +288,8 @@ classifier_svm <- ksvm(as.factor(is_canceled) ~ . - hotelResort.Hotel - adults10
 predictions_svm <- predict(classifier_svm, hotel_test)
 
 #Write agreement metrics 
-table(predictions_svm, test$is_canceled)
-agreement <- predictions_svm == test$is_canceled
+table(predictions_svm, hotel_test$is_canceled)
+agreement <- predictions_svm == hotel_test$is_canceled
 table(agreement)
 prop.table(table(agreement))
 ```
