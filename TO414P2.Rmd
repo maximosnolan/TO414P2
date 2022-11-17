@@ -267,11 +267,19 @@ sms_test_labels = as.factor(hoteldata_norm[-train_ID, "is_canceled"])
 sms_classifier <- naiveBayes(sms_train, sms_train_labels)
 sms_classifier
 
-## Step 4: Evaluating model performance ----
+## Model Performance
 sms_test_pred <- predict(sms_classifier, sms_test)
 
 CrossTable(sms_test_labels, sms_test_pred, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,dnn = c('actual', 'predicted'))
 confusionMatrix(as.factor(sms_test_labels), as.factor(sms_test_pred), positive = "1")
+
+##Improve Model
+sms_classifier2 <- naiveBayes(sms_train, sms_train_labels, laplace = 1)
+sms_test_pred2 <- predict(sms_classifier2, sms_test)
+CrossTable(sms_test_labels, sms_test_pred, 
+           prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,
+           dnn = c('actual', 'predicted'))
+
 ```
 
 # SVM
