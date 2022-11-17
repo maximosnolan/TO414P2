@@ -73,6 +73,7 @@ library(class)
 library(ggplot2)
 library(dplyr)
 library(C50)
+library(kernlab)
 library(e1071)
 ```
 
@@ -271,4 +272,24 @@ sms_test_pred <- predict(sms_classifier, sms_test)
 
 CrossTable(sms_test_labels, sms_test_pred, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,dnn = c('actual', 'predicted'))
 confusionMatrix(as.factor(sms_test_labels), as.factor(sms_test_pred), positive = "1")
+```
+
+# SVM
+
+```{r, cache = TRUE}
+# Load in libraries 
+set.seed(12345)
+# use hotel_train and hotel_test 
+
+#Create SVM
+classifier_svm <- ksvm(as.factor(is_canceled) ~ . - hotelResort.Hotel - adults10 - adults40 - adults50 - children10 - babies10, data = hotel_train, kernel = "vanilladot")
+
+#Predict
+predictions_svm <- predict(classifier_svm, hotel_test)
+
+#Write agreement metrics 
+table(predictions_svm, test$is_canceled)
+agreement <- predictions_svm == test$is_canceled
+table(agreement)
+prop.table(table(agreement))
 ```
