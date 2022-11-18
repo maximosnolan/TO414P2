@@ -84,8 +84,8 @@ hoteldata <- read.csv("hotel_bookings.csv")
 # View data
 summary(hoteldata)
 str(hoteldata)
-# Store the original data set to a new one for collinearity check
-hotel_cor_data = hoteldata
+# Store the original data set to a new one
+hotel_data_initial = hoteldata
 ```
 
 # Explore the dataset by visualization
@@ -175,7 +175,7 @@ str(hoteldata_norm)
 # Correlation for Numeric Columns
 **Check to make sure no numeric columns are not too correlated and also can be used to choose which variables to include in the model later.**
 ```{r}
-hoteldata_numeric <- hotel_cor_data[,sapply(hotel_cor_data, is.numeric)]
+hoteldata_numeric <- hotel_data_initial[,sapply(hotel_data_initial, is.numeric)]
 round(cor(hoteldata_numeric),2)
 ```
 
@@ -211,7 +211,37 @@ lead_time; hotel; arrival_date_month; meal; previous_cancellations; customer_typ
 
 # kNN Prediction
 ```{r}
+# Create new train and test data set for KNN
+knn_train = hoteldata_norm[train_ID, -match("is_canceled",names(hoteldata_norm))]
+knn_test = hoteldata_norm[-train_ID, -match("is_canceled",names(hoteldata_norm))]
+# Now the response (aka labels) - only the is_canceled column
+knn_train_labels = hoteldata_norm[train_ID, "is_canceled"]
+knn_test_labels = hoteldata_norm[-train_ID, "is_canceled"]
+```
 
+
+```{r}
+set.seed(12345)
+# Peform the tuned KNN to get the best K value
+# Use expand.grid() to create grid of tuning parameters
+grid = expand.grid(k = seq(2, 100, by = 5))
+# Use trainControl() to alter resampling strategy
+control = trainControl(method = "cv", number = 10)
+# Get a sample from the hoteldata_norm
+hoteldata_norm_sampled = hoteldata_norm[sample(5000),]
+# Train the model
+knn.train = train(as.factor(is_canceled) ~., data = hoteldata_norm_sampled, method = "knn", trControl = control, tuneGrid = grid)
+knn.train
+```
+
+
+```{r}
+# Execute the prediction. Given the analysis above, we get the optimal K = 42
+knn_predict = knn(train = knn_train, test = knn_test, cl = knn_train_labels, 42)
+# Evaluate the model performance
+CrossTable(x = knn_test_labels, y = knn_predict, 
+           prop.chisq=FALSE)
+confusionMatrix(as.factor(knn_predict), as.factor(knn_test_labels), positive = "1")
 ```
 
 # ANN Prediction
