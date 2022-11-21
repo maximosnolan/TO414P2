@@ -254,6 +254,12 @@ threshold <- 0.5
 predicted_yyes_1 <- ifelse(ANN_pred1 < threshold, 0, 1)
 CrossTable(x = hotel_test$is_canceled, y = predicted_yyes_1, prop.chisq=FALSE)
 confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(predicted_yyes_1), positive = "1")
+# trying to improve with more layer
+ANN_model2 <- neuralnet(is_canceled ~ ., data = hotel_train, hidden = 2)
+ANN_pred2 <- predict(ANN_model2, hotel_test)
+predicted_yyes_2 <- ifelse(ANN_pred2 < threshold, 0, 1)
+CrossTable(x = hotel_test$is_canceled, y = predicted_yyes_2, prop.chisq=FALSE)
+confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(predicted_yyes_2), positive = "1")
 ```
 
 **Summary**
@@ -341,7 +347,7 @@ From the SVM, we can see that the accuracy is 80.04% with 2455 false positives a
 #Stacked Model
 ```{r}
 
-combined_predictions <- data.frame(pred_lr, predicted_yyes_1, pred_dt_boost, sms_test_pred2, predictions_svm, hotel_test$is_canceled)
+combined_predictions <- data.frame(pred_lr, knn_predict, ANN_pred2, pred_dt_boost, sms_test_pred2, predictions_svm, hotel_test$is_canceled)
 
 #Use 70% as training, 30% as testing.
 set.seed(12345)
@@ -354,7 +360,9 @@ summary(model)
 
 #Evaluate performance of the model
 stacked_predict <- predict(model, stacked_test)
-
-#TODO: create cross table. 
+CrossTable(stacked_test$hotel_test.is_canceled, stacked_predict,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual yyes', 'predicted yyes'))
+confusionMatrix(as.factor(stacked_test$hotel_test.is_canceled), as.factor(stacked_predict), positive = "1")
 ```
 
