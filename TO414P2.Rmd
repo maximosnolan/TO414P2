@@ -357,7 +357,7 @@ length(combined_predictions$hotel_test.is_canceled)
 train_ID = sample(0.7*nrow(combined_predictions))
 stacked_train = combined_predictions[train_ID, ]
 stacked_test = combined_predictions[-train_ID, ]
-model <- C5.0(as.factor(hotel_test.is_canceled) ~ ., data = stacked_train, trails = 10)
+model <- C5.0(as.factor(hotel_test.is_canceled) ~ ., data = stacked_train, trials = 10)
 plot(model)
 summary(model)
 
