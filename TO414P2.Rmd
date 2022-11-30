@@ -322,8 +322,12 @@ CrossTable(sms_test_labels, sms_test_pred,
 set.seed(12345)
 # use hotel_train and hotel_test 
 
+train_control <- trainControl(method="repeatedcv", number=2, repeats=1)
+
+classifier_svm <- train(as.factor(is_canceled) ~. - hotelResort.Hotel - adults10 - adults40 - adults50 - children10 - babies10, data = hotel_train, method = "svmLinear", trControl = train_control,  preProcess = c("center","scale"))
+
 #Create SVM
-classifier_svm <- ksvm(as.factor(is_canceled) ~ . - hotelResort.Hotel - adults10 - adults40 - adults50 - children10 - babies10, data = hotel_train, kernel = "vanilladot")
+#classifier_svm <- ksvm(as.factor(is_canceled) ~ . - hotelResort.Hotel - adults10 - adults40 - adults50 - children10 - babies10, data = hotel_train, kernel = "vanilladot")
 
 #Predict
 predictions_svm <- predict(classifier_svm, hotel_test)
