@@ -248,19 +248,37 @@ confusionMatrix(as.factor(knn_predict), as.factor(knn_test_labels), positive = "
 # ANN Prediction
 ```{r}
 set.seed(12345)
-ANN_model1 <- neuralnet(formula = is_canceled ~ ., data = hotel_train)
-plot(ANN_model1)
+tr_control <- trainControl(method = "repeatedcv",
+                           number = 4,
+                           repeats = 2,
+                           classProbs = TRUE,
+                           summaryFunction = twoClassSummary)
+ANN_train <- hotel_train
+ANN_train$is_canceled <- ifelse(ANN_train$is_canceled == 1, "yes", "no")
+ANN_model1 <- train(as.factor(is_canceled) ~ ., 
+                    data = ANN_train, 
+                    method = "nnet", 
+                    metric = "ROC",
+                    trControl = tr_control,
+                    tuneGrid = data.frame('.decay'=0.5, '.size'=5),
+                    trace = FALSE)
 ANN_pred1 <- predict(ANN_model1, hotel_test)
-threshold <- 0.5
-predicted_yyes_1 <- ifelse(ANN_pred1 < threshold, 0, 1)
-CrossTable(x = hotel_test$is_canceled, y = predicted_yyes_1, prop.chisq=FALSE)
-confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(predicted_yyes_1), positive = "1")
+ANN_pred1 <- ifelse(ANN_pred1 == "yes", 1, 0)
+CrossTable(x = ANN_pred1, y = hotel_test$is_canceled, prop.chisq=FALSE)
+confusionMatrix( as.factor(ANN_pred1), as.factor(hotel_test$is_canceled), positive = "1")
 # trying to improve with more layer
-ANN_model2 <- neuralnet(is_canceled ~ ., data = hotel_train, hidden = 2)
+ANN_model2 <- train(as.factor(is_canceled) ~ ., 
+                    data = ANN_train, 
+                    method = "nnet", 
+                    metric = "ROC",
+                    trControl = tr_control,
+                    tuneGrid = data.frame('.decay'=0.5, '.size'=5),
+                    hidden = 3,
+                    trace = FALSE)
 ANN_pred2 <- predict(ANN_model2, hotel_test)
-predicted_yyes_2 <- ifelse(ANN_pred2 < threshold, 0, 1)
-CrossTable(x = hotel_test$is_canceled, y = predicted_yyes_2, prop.chisq=FALSE)
-confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(predicted_yyes_2), positive = "1")
+ANN_pred2 <- ifelse(ANN_pred2 == "yes", 1, 0)
+CrossTable(x = ANN_pred2, y = hotel_test$is_canceled, prop.chisq=FALSE)
+confusionMatrix(as.factor(ANN_pred2), as.factor(hotel_test$is_canceled), positive = "1")
 ```
 
 **Summary**
