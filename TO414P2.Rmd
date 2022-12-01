@@ -337,7 +337,20 @@ CrossTable(sms_test_labels, sms_test_pred,
            prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,
            dnn = c('actual', 'predicted'))
 
+#complete model with k fold validation
+control = trainControl(method = "cv", number = 10)
+
+# train model
+nb.m1 <- train(x=sms_train,y=sms_train_labels, method = "nb", trControl = control,metric = "Kappa")
+# predict using the model
+sms_test_pred3 <- predict(nb.m1, sms_test)
+sms_test_pred3
+
+CrossTable(sms_test_labels, sms_test_pred3, prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE,dnn = c('actual', 'predicted'))
+confusionMatrix(as.factor(sms_test_labels), as.factor(sms_test_pred3), positive = "1")
+
 ```
+
 
 # SVM
 
