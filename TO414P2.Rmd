@@ -189,19 +189,27 @@ hotel_test = hoteldata_norm[-train_ID, ]
 
 # Logistic Regression Prediction
 ```{r}
-set.seed(12345)
-canceled_lr <- glm(is_canceled ~ . - hotelResort.Hotel, data = hotel_train, family = "binomial")
-summary(canceled_lr)
+# define training control
+control = trainControl(method = "cv", number = 10)
 
-# Remove variables with strong multicollinearity 
-canceled_lr <- glm(is_canceled ~ . - hotelResort.Hotel - adults10 - adults40 - adults50 - children10 - babies10, data = hotel_train, family = "binomial")
-summary(canceled_lr)
+# train the model on dataset
+lrmodel <- train(as.factor(is_canceled) ~ . - hotelResort.Hotel 
+                 - adults10 - adults40 - adults50 - children10 - babies10,
+                 data = hotel_train,
+                 trControl = control,
+                 method = "glm",
+                 metric = "Accuracy",
+                 family=binomial)
 
-pred_lr_orig <- predict(canceled_lr, hotel_test, type="response")
-pred_lr <- ifelse(pred_lr_orig <= 0.5, 0, 1)
-summary(pred_lr)
-CrossTable(x = hotel_test$is_canceled, y = pred_lr, prop.chisq=FALSE)
-confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(pred_lr), positive = "1")
+# print cv scores
+summary(lrmodel)
+
+# predict using the model
+lroutcome <- predict(lrmodel, hotel_test)
+lroutcome
+
+CrossTable(x = hotel_test$is_canceled, y = lroutcome, prop.chisq=FALSE)
+confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(lroutcome), positive = "1")
 ```
 
 **Summary**
@@ -287,26 +295,27 @@ We can see from the ANN model output, there are 3451 false positive and 7767 fal
 # Decision Trees Prediction
 ```{r}
 set.seed(12345)
-# building the decision trees model
-canceled_dt <- C5.0(as.factor(is_canceled) ~ ., data = hotel_train)
+dt.grid <- expand.grid(.model = "tree",
+                    .trials = c(1, 5, 10, 15, 20, 25, 30, 35),
+                    .winnow = "FALSE")
 
-# predict with the decision tree model
-pred_dt <- predict(canceled_dt, hotel_test)
+# customize train() with the control list and grid of parameters 
+dtmodel <- train(as.factor(is_canceled) ~ ., data = hotel_train, method = "C5.0",
+           metric = "Kappa",
+           trControl = control,
+           tuneGrid = dt.grid)
 
-# evaluate the model performance 
-CrossTable(x = hotel_test$is_canceled, y = pred_dt, prop.chisq=FALSE)
-confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(pred_dt), positive = "1")
+# predict using the model
+dtoutcome <- predict(dtmodel, hotel_test)
+dtoutcome
 
-# improve the model accuracy by adding more trials to the model
-canceled_dt_boost <- C5.0(as.factor(is_canceled) ~ ., data = hotel_train,
-                       trials = 100)
-pred_dt_boost <- predict(canceled_dt_boost, hotel_test)
-CrossTable(x = hotel_test$is_canceled, y = pred_dt_boost, prop.chisq=FALSE)
-confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(pred_dt_boost), positive = "1")
+# 
+CrossTable(x = hotel_test$is_canceled, y = dtoutcome, prop.chisq=FALSE)
+confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(dtoutcome), positive = "1")
 ```
 
 **Summary**
-From the boosted model, we can see that the accuracy is 85.2%, with 5734 false negatives (people who are predicted to not cancel but actually cancels) and 3095 false positives (people who are predicted to cancel but actually don't cancel). 
+From the boosted model, we can see that the accuracy is 85.01%, with 5715 false negatives (people who are predicted to not cancel but actually cancels) and 3232 false positives (people who are predicted to cancel but actually don't cancel). 
 
 
 # Naive Bayes Prediction
