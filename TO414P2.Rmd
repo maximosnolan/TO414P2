@@ -338,7 +338,7 @@ CrossTable(sms_test_labels, sms_test_pred,
            dnn = c('actual', 'predicted'))
 
 #complete model with k fold validation
-control = trainControl(method = "cv", number = 10)
+control = trainControl(method = "cv", number = 2)
 
 # train model
 nb.m1 <- train(x=sms_train,y=sms_train_labels, method = "nb", trControl = control,metric = "Kappa")
