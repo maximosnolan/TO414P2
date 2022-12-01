@@ -236,17 +236,14 @@ set.seed(12345)
 grid = expand.grid(k = seq(2, 100, by = 5))
 # Use trainControl() to alter resampling strategy
 control = trainControl(method = "cv", number = 10)
-# Get a sample from the hoteldata_norm
-hoteldata_norm_sampled = hoteldata_norm[sample(5000),]
 # Train the model
-knn.train = train(as.factor(is_canceled) ~., data = hoteldata_norm_sampled, method = "knn", trControl = control, tuneGrid = grid)
-knn.train
+knn.train = train(as.factor(is_canceled) ~., data = hotel_train, method = "knn", trControl = control, tuneGrid = grid)
 ```
 
 
 ```{r}
-# Execute the prediction. Given the analysis above, we get the optimal K = 42
-knn_predict = knn(train = knn_train, test = knn_test, cl = knn_train_labels, 42)
+# Execute the prediction.
+knn_predict = predict(knn.train, knn_test)
 # Evaluate the model performance
 CrossTable(x = knn_test_labels, y = knn_predict, 
            prop.chisq=FALSE)
@@ -372,24 +369,37 @@ confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(predictions_svm), p
 
 From the SVM, we can see that the accuracy is 80.04% with 2455 false positives and 9244 false negatives. What this means is that we are claiming that 2455 people will not honor their booking when in reality they do. Moreover, we are also asserting with this model that there are 9244 people that will honor their booking that actually do not. Moreover, the kappa score is 0.544, which shows relatively strong agreement.
 
-#Stacked Model
+# Stacked Model
 ```{r}
 combined_predictions <- data.frame(pred_lr_orig, knn_predict, ANN_pred2, pred_dt_boost, sms_test_pred2, predictions_svm, hotel_test$is_canceled)
 str(combined_predictions)
-#Use 70% as training, 30% as testing.
+# Use 70% as training, 30% as testing.
 set.seed(12345)
 train_ID = sample(0.7*nrow(combined_predictions))
 stacked_train = combined_predictions[train_ID, ]
 stacked_test = combined_predictions[-train_ID, ]
-model <- C5.0(as.factor(hotel_test.is_canceled) ~ ., data = stacked_train, trials = 10)
+stacked_model <- C5.0(as.factor(hotel_test.is_canceled) ~ ., data = stacked_train, trials = 10)
 plot(model)
 summary(model)
 
-#Evaluate performance of the model
-stacked_predict <- predict(model, stacked_test)
+# Evaluate performance of the model
+stacked_predict <- predict(stacked_model, stacked_test)
 CrossTable(stacked_test$hotel_test.is_canceled, stacked_predict,
            prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
            dnn = c('actual yyes', 'predicted yyes'))
 confusionMatrix(as.factor(stacked_test$hotel_test.is_canceled), as.factor(stacked_predict), positive = "1")
+
+# Make some mistakes more costly to the tree
+## create a cost matrix
+error_cost = matrix(c(0, 1, 4, 0), nrow = 2)
+error_cost
+## Apply the cost matrix to the tree
+stacked_model_improved = C5.0(as.factor(hotel_test.is_canceled) ~., data = stacked_train,
+                          costs = error_cost)
+stacked_predict_improved = predict(stacked_model_improved, stacked_test)
+
+# Evaluate the performance
+CrossTable(x = stacked_test$hotel_test.is_canceled, y = stacked_predict_improved, prop.chisq=FALSE)
+confusionMatrix(as.factor(stacked_test$hotel_test.is_canceled), as.factor(stacked_predict_improved), positive = "1")
 ```
 
