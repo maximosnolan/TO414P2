@@ -220,10 +220,7 @@ lead_time; hotel; arrival_date_month; meal; previous_cancellations; customer_typ
 
 # kNN Prediction
 ```{r}
-# Create new train and test data set for KNN
-knn_train = hoteldata_norm[train_ID, -match("is_canceled",names(hoteldata_norm))]
-knn_test = hoteldata_norm[-train_ID, -match("is_canceled",names(hoteldata_norm))]
-# Now the response (aka labels) - only the is_canceled column
+# Extract the response (aka labels) - only the is_canceled column
 knn_train_labels = hoteldata_norm[train_ID, "is_canceled"]
 knn_test_labels = hoteldata_norm[-train_ID, "is_canceled"]
 ```
@@ -233,22 +230,21 @@ knn_test_labels = hoteldata_norm[-train_ID, "is_canceled"]
 set.seed(12345)
 # Perform the tuned KNN to get the best K value
 # Use expand.grid() to create grid of tuning parameters
-grid = expand.grid(k = seq(2, 100, by = 5))
+grid = expand.grid(k = c(10, 20))
 # Use trainControl() to alter resampling strategy
-control = trainControl(method = "cv", number = 10)
+control = trainControl(method = "cv", number = 3)
 # Train the model
 knn.train = train(as.factor(is_canceled) ~., data = hotel_train, method = "knn", trControl = control, tuneGrid = grid)
-```
-
-
-```{r}
 # Execute the prediction.
-knn_predict = predict(knn.train, knn_test)
+knn_predict = predict(knn.train, hotel_test)
 # Evaluate the model performance
 CrossTable(x = knn_test_labels, y = knn_predict, 
            prop.chisq=FALSE)
-confusionMatrix(as.factor(knn_predict), as.factor(knn_test_labels), positive = "1")
+confusionMatrix(as.factor(knn_test_labels), as.factor(knn_predict), positive = "1")
 ```
+
+**Summary**
+The optimal K value we choose for the KNN model is 10. From the KNN prediction results, we can see there are 5170 false positive and 6052 false negative. The overall accuracy is 81.2%.
 
 # ANN Prediction
 ```{r}
@@ -383,6 +379,17 @@ confusionMatrix(as.factor(hotel_test$is_canceled), as.factor(predictions_svm), p
 From the SVM, we can see that the accuracy is 80.04% with 2455 false positives and 9244 false negatives. What this means is that we are claiming that 2455 people will not honor their booking when in reality they do. Moreover, we are also asserting with this model that there are 9244 people that will honor their booking that actually do not. Moreover, the kappa score is 0.544, which shows relatively strong agreement.
 
 # Stacked Model
+After we get all results based on the individual models, we want to utilize the decision tree to improve the results again based on a stacked model. This is comprised of two steps:
+
+1. Combine all predicted results together and use them to conduct the second-level prediction. 
+
+2. Add a cost matrix to the decision tree process, which means we assign error costs to the false positive and false negative cases. Based on the introduction to our business question, this means calculating the cost for these two cases:
+
+False positive: We predict customers will cancel, but they do come to the hotel. The hotel loses revenue from those customers which equals the difference between the premium rate and the normal rate $\$150 - \$100 = \$50$.
+
+False negative: We predict customers will come, but they do cancel. The hotel loses the revenue for the booked room at a normal price $\$100$.
+
+Therefore, the ratio between the false positive and false negative is 1:2. Therefore, we assign 1 to the false positive cases and 2 to the false negative cases in the cost matrix.
 ```{r}
 combined_predictions <- data.frame(pred_lr_orig, knn_predict, ANN_pred2, pred_dt_boost, sms_test_pred2, predictions_svm, hotel_test$is_canceled)
 str(combined_predictions)
@@ -404,7 +411,7 @@ confusionMatrix(as.factor(stacked_test$hotel_test.is_canceled), as.factor(stacke
 
 # Make some mistakes more costly to the tree
 ## create a cost matrix
-error_cost = matrix(c(0, 1, 4, 0), nrow = 2)
+error_cost = matrix(c(0, 1, 2, 0), nrow = 2)
 error_cost
 ## Apply the cost matrix to the tree
 stacked_model_improved = C5.0(as.factor(hotel_test.is_canceled) ~., data = stacked_train,
