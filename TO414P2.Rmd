@@ -96,15 +96,29 @@ hotel_data_initial = hoteldata
 # Check the lead_time
 hist(hoteldata$lead_time, main="Distribution of the lead time", xlab="Lead Time",col="darkmagenta",
 freq=FALSE)
+
 # Check the customers' arrival month
 ggplot(hoteldata) + geom_bar(mapping = aes(x = "", fill = arrival_date_month)) + labs(x = NULL) + coord_polar(theta = "y") + ylab("Arrival Month")
-# Check the reserved room type
-ggplot(hoteldata) + geom_bar(mapping = aes(x = "", fill = reserved_room_type), width = 1) + labs(x = NULL) +  coord_polar(theta = "y")
-# Check the customer type
-ggplot(hoteldata) + geom_bar(mapping = aes(x = "", fill = customer_type), width = 1) + labs(x = NULL)
-```
 
-We can see the distribution of lead time is skewed to the right, and the majority of customers book the rooms prior to 200 days of arrival. The arrival date month is roughly equally distributed between the twelve months. The most reserved room type is type A, with type D being second popular. Customer type is mainly transient and seconded by trnasient-party.
+# Check the reserved room type
+ggplot(hoteldata) + geom_bar(mapping = aes(x = "", fill = reserved_room_type)) + labs(x = NULL)
+
+# Check the customer type
+ggplot(hoteldata) + geom_bar(mapping = aes(x = "", fill = customer_type)) + labs(x = NULL)
+
+# Check the reserved room type, grouped by country
+hoteldata1 = hoteldata %>% group_by(reserved_room_type, country) %>% summarize(market_segment, country, n = n()) %>% distinct
+ggplot(hoteldata1) + geom_bar(mapping = aes(x = country, fill = reserved_room_type)) + labs(x = NULL) + scale_x_discrete(guide = guide_axis(n.dodge = 12))
+
+# Check the customer type, grouped by country
+hoteldata2 = hoteldata %>% group_by(customer_type, country) %>% summarize(customer_type, country, n = n()) %>% distinct
+ggplot(hoteldata2) + geom_bar(mapping = aes(x = country, fill = customer_type)) + labs(x = NULL) + scale_x_discrete(guide = guide_axis(n.dodge = 12))
+``` 
+
+**Visualization Briefing**
+We can see the distribution of lead time is skewed to the right, and the majority of customers book the rooms prior to 200 days of arrival. The arrival date month is roughly equally distributed between the twelve months. The most reserved room type is type A, with type D being second popular. Customer type is mainly transient and seconded by transient-party.
+
+When combined with country-based analysis, we can find that the total number of country type is too large, thus making the graph fuzzy. We may need to take care of the "country" variable later.
 
 # Clean the dataset
 ```{r}
