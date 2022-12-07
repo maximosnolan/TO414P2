@@ -430,9 +430,8 @@ stacked_model <- C5.0(as.factor(hotel_test.is_canceled) ~ ., data = stacked_trai
 
 # Evaluate performance of the model
 stacked_predict <- predict(stacked_model, stacked_test)
-CrossTable(stacked_test$hotel_test.is_canceled, stacked_predict,
-           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
-           dnn = c('actual yyes', 'predicted yyes'))
+CrossTable(stacked_predict, stacked_test$hotel_test.is_canceled, 
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE)
 confusionMatrix(as.factor(stacked_predict), as.factor(stacked_test$hotel_test.is_canceled),  positive = "1")
 
 # Make some mistakes more costly to the tree
